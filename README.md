@@ -9,6 +9,9 @@ project-coredvd
 ├── LICENSE
 ├── README.md
 ├── docs.md
+├── asm.py
+├── convert.py
+├── main.cpp
 ├── firmware
 │   └── Pulse
 │       ├── docs.md
