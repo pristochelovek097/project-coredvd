@@ -14,7 +14,7 @@ project-coredvd
 ├── firmware
 │   ├── Pulse
 |   |   ├── docs.md
-│   |   └── firmware.asm
+|   |   └── firmware.asm
 |   └── z80
 |       ├── docs.md
 |       └── firmware.asm
