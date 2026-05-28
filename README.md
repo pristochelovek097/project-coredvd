@@ -11,7 +11,6 @@ project-coredvd
 ├── docs.md
 ├── asm.py
 ├── convert.py
-├── main.cpp
 ├── firmware
 │   └── Pulse
 │       ├── docs.md
