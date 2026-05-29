@@ -3,8 +3,6 @@ name: Build coreDVD
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -12,6 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    
+    - name: List all files
+      run: |
+        echo "=== Current directory ==="
+        pwd
+        echo "=== All files ==="
+        ls -la
+        echo "=== Find all .cpp files ==="
+        find . -name "*.cpp" -type f
+        echo "=== Find main.cpp specifically ==="
+        find . -name "main.cpp" -type f
     
     - name: Install dependencies
       run: |
@@ -25,62 +34,28 @@ jobs:
     
     - name: Compile
       run: |
-        g++ main.cpp -o coredvd-linux \
-          -lsfml-graphics -lsfml-window -lsfml-system \
-          -lavformat -lavcodec -lswscale -lavutil \
-          -lpthread -std=c++17 -O2
+        # Пробуем разные варианты
+        if [ -f "src/main.cpp" ]; then
+          g++ src/main.cpp -o coredvd-linux \
+            -lsfml-graphics -lsfml-window -lsfml-system \
+            -lavformat -lavcodec -lswscale -lavutil \
+            -lpthread -std=c++17 -O2
+        elif [ -f "main.cpp" ]; then
+          g++ main.cpp -o coredvd-linux \
+            -lsfml-graphics -lsfml-window -lsfml-system \
+            -lavformat -lavcodec -lswscale -lavutil \
+            -lpthread -std=c++17 -O2
+        elif [ -f "src/main.c" ]; then
+          g++ src/main.c -o coredvd-linux \
+            -lsfml-graphics -lsfml-window -lsfml-system \
+            -lavformat -lavcodec -lswscale -lavutil \
+            -lpthread -std=c++17 -O2
+        else
+          echo "No main.cpp found!"
+          exit 1
+        fi
     
     - uses: actions/upload-artifact@v4
       with:
         name: coredvd-linux
         path: coredvd-linux
-
-  windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup MSYS2
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: |
-          mingw-w64-x86_64-gcc
-          mingw-w64-x86_64-SFML
-          mingw-w64-x86_64-ffmpeg
-    
-    - name: Compile
-      shell: msys2 {0}
-      run: |
-        g++ main.cpp -o coredvd-windows.exe \
-          -lsfml-graphics -lsfml-window -lsfml-system \
-          -lavformat -lavcodec -lswscale -lavutil \
-          -static-libgcc -static-libstdc++ \
-          -lpthread -std=c++17 -O2
-    
-    - uses: actions/upload-artifact@v4
-      with:
-        name: coredvd-windows
-        path: coredvd-windows.exe
-
-  macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install dependencies
-      run: |
-        brew install sfml ffmpeg
-    
-    - name: Compile
-      run: |
-        g++ main.cpp -o coredvd-macos \
-          -lsfml-graphics -lsfml-window -lsfml-system \
-          -lavformat -lavcodec -lswscale -lavutil \
-          -lpthread -std=c++17 -O2
-    
-    - uses: actions/upload-artifact@v4
-      with:
-        name: coredvd-macos
-        path: coredvd-macos
