@@ -50,18 +50,17 @@ jobs:
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-make
           mingw-w64-x86_64-pkg-config
+          mingw-w64-x86_64-unzip
     
     - name: download and install sfml 2.6.1
       shell: msys2 {0}
       run: |
         cd /
         curl -L -o sfml.zip https://github.com/SFML/SFML/releases/download/2.6.1/SFML-2.6.1-windows-gcc-13.2.0-mingw-64-bit.zip
-        unzip -o sfml.zip
+        unzip sfml.zip
         cp -r SFML-2.6.1/* /mingw64/
         rm -rf SFML-2.6.1 sfml.zip
-        # проверка
         ls -la /mingw64/include/SFML/
-        ls -la /mingw64/lib/libsfml*
     
     - name: compile
       shell: msys2 {0}
