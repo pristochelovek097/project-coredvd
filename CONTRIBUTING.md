@@ -28,20 +28,77 @@
 **линукс:**
 ```bash
 sudo apt install libsfml-dev libavformat-dev libavcodec-dev libswscale-dev libavutil-dev
-g++ src/main.cpp -o coredvd -lsfml-graphics -lsfml-window -lsfml-system -lavformat -lavcodec -lswscale -lavutil -lpthread -std=c++17 -O2
+# если хочешь чтобы у тебя ракета была а не код
+g++ src/main.cpp -o coredvd \
+    -lsfml-graphics -lsfml-window -lsfml-system \
+    -lavformat -lavcodec -lswscale -lavutil -lpthread \
+    -std=c++17 -O3 -march=native -mtune=native \
+    -flto=auto -fomit-frame-pointer -pipe \
+    -Wl,--as-needed -Wl,--gc-sections
+
+# просто скомпилировать
+g++ src/main.cpp -o coredvd \
+    -lsfml-graphics -lsfml-window -lsfml-system \
+    -lavformat -lavcodec -lswscale -lavutil -lpthread \
+    -std=c++17 -O2 -pipe
+
+# дебаг
+g++ src/main.cpp -o coredvd \
+    -lsfml-graphics -lsfml-window -lsfml-system \
+    -lavformat -lavcodec -lswscale -lavutil -lpthread \
+    -std=c++17 -g -O0 -DDEBUG -Wall -Wextra
 ```
 
-## что можно сделать прямо сейчас
+**винда:**
 
-- [ ] портировать на фрибсд
-- [ ] добавить субтитры (.srt)
-- [ ] исправить зум (сейчас ломается центрирование)
-- [ ] добавить аудио (через FFmpeg)
-- [ ] сделать сохранение состояния
+```bash
+# 1. установка Chocolatey
+winget install Chocolatey.Chocolatey
+
+# 2. установка MinGW (g++)
+choco install mingw -y
+
+# 3. установка FFmpeg
+winget install Gyan.FFmpeg.Essentials
+
+# 4. установка vcpkg
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+
+# 5. установка SFML через vcpkg
+.\vcpkg install sfml:x64-windows
+
+# 6. интеграция vcpkg
+.\vcpkg integrate install
+
+# 7. возвращаемся в папку проекта
+cd ..
+
+# если хочешь чтобы у тебя ракета была а не код
+g++ src/main.cpp -o coredvd \
+    -lsfml-graphics -lsfml-window -lsfml-system \
+    -lavformat -lavcodec -lswscale -lavutil -lpthread \
+    -std=c++17 -O3 -march=native -mtune=native \
+    -flto=auto -fomit-frame-pointer -pipe \
+    -Wl,--as-needed -Wl,--gc-sections
+
+# просто скомпилировать
+g++ src/main.cpp -o coredvd \
+    -lsfml-graphics -lsfml-window -lsfml-system \
+    -lavformat -lavcodec -lswscale -lavutil -lpthread \
+    -std=c++17 -O2 -pipe
+
+# дебаг
+g++ src/main.cpp -o coredvd \
+    -lsfml-graphics -lsfml-window -lsfml-system \
+    -lavformat -lavcodec -lswscale -lavutil -lpthread \
+    -std=c++17 -g -O0 -DDEBUG -Wall -Wextra
+```
 
 ## стиль кода
 
-- один файл — `src/main.cpp` (модульность - можно)
+- один файл -`src/main.cpp` (модульность - можно)
 - отступы - 4 пробела
 - имена переменных - `snake_case`
 - комментарии на русском или английском
