@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# файл asm.py - ассемблер для процессоров
+
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2026 prostochelovek097
 import sys
