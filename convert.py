@@ -1,3 +1,7 @@
+# файл convert.py - конвертирует видео в цветной формат YUV420
+
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 prostochelovek097
 import cv2
 import os
 import numpy as np
