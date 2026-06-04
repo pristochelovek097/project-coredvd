@@ -9,7 +9,7 @@
 ## как же помочь проекту?
 
 ### баги и идеи
-- создай [Issue](https://github.com/SPERMA22814886752/project-coredvd/issues) с описанием
+- создай [Issue](https://github.com/pristochelovek097/project-coredvd/issues) с описанием
 - используй метки: `bug`, `enhancement`, `good first issue`
 
 ### код
