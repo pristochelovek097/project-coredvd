@@ -31,7 +31,7 @@ const int SCREEN_HEIGHT = 240;
 const int SCALE = 3;
 const double TARGET_FPS = 24.0;
 
-// ASCII Art
+// асции арт
 const char* ASCII_ART = R"(
                            ______     ______  
    ___ ___  _ __ ___|  _ \ \   / /  _ \ 
@@ -40,7 +40,7 @@ const char* ASCII_ART = R"(
   \___\___/|_|  \___|____/  \_/  |____/ 
 )";
 
-// Optimized font
+// оптимизированный шрифт
 const uint8_t OSD_FONT[256][8] = {
     {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
     {0x18,0x24,0x42,0x42,0x7E,0x42,0x42,0x00},
@@ -92,7 +92,7 @@ const uint8_t OSD_FONT[256][8] = {
     {0x00,0x18,0x3C,0x7E,0x7E,0x3C,0x18,0x00}
 };
 
-// Extended Pulse CPU opcodes
+// инструкции Pulse
 namespace PulseArch {
     enum Opcode : uint8_t {
         NOP       = 0x00, MOV       = 0x01, ADD       = 0x02, LOAD_FRAME = 0x03,
@@ -106,6 +106,7 @@ namespace PulseArch {
     };
 }
 
+// инструкции z80
 namespace Z80Arch {
     enum Opcode : uint8_t {
         NOP = 0x00, LD_A_N = 0x3E, LD_B_N = 0x06,
@@ -213,9 +214,9 @@ public:
 
     void print_ascii_art() {
         std::cout << "\033[1;36m" << ASCII_ART << "\033[0m\n";
-        std::cout << "========================================\n";
-        std::cout << "     coreDVD Interactive Player v2.0    \n";
-        std::cout << "========================================\n\n";
+        std::cout << "===============\n";
+        std::cout << "     coreDVD   \n";
+        std::cout << "===============\n\n";
     }
 
     std::string find_video() {
@@ -235,10 +236,12 @@ public:
         const AVCodec* codec = avcodec_find_decoder(fmt_ctx->streams[video_stream_idx]->codecpar->codec_id);
         if (!codec) return false;
         codec_ctx = avcodec_alloc_context3(codec);
+        if (!codec_ctx) return false; // проверка на nullptr
         avcodec_parameters_to_context(codec_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
         if (avcodec_open2(codec_ctx, codec, nullptr) < 0) return false;
         frame = av_frame_alloc();
         pkt = av_packet_alloc();
+        if (!frame || !pkt) return false; // проверка на nullptr
         sws_ctx = sws_getContext(codec_ctx->width, codec_ctx->height, codec_ctx->pix_fmt,
             SCREEN_WIDTH, SCREEN_HEIGHT, AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr, nullptr);
         time_base = av_q2d(fmt_ctx->streams[video_stream_idx]->time_base);
@@ -512,59 +515,131 @@ public:
                 if (PC + 3 >= ROM.size()) break;
                 PC = ROM[PC] | (ROM[PC+1]<<8) | (ROM[PC+2]<<16) | (ROM[PC+3]<<24); break;
             case PulseArch::JZ:
+                if (PC + 3 >= ROM.size()) break;
                 if (flags & 1) { PC = ROM[PC] | (ROM[PC+1]<<8) | (ROM[PC+2]<<16) | (ROM[PC+3]<<24); }
                 else PC += 4; break;
             case PulseArch::JNZ:
+                if (PC + 3 >= ROM.size()) break;
                 if (!(flags & 1)) { PC = ROM[PC] | (ROM[PC+1]<<8) | (ROM[PC+2]<<16) | (ROM[PC+3]<<24); }
                 else PC += 4; break;
             case PulseArch::LOAD:
                 if (PC + 4 >= ROM.size()) break;
-                regs[ROM[PC+4]] = ROM[PC] | (ROM[PC+1]<<8) | (ROM[PC+2]<<16) | (ROM[PC+3]<<24);
+                if (ROM[PC+4] < 16) {
+                    regs[ROM[PC+4]] = ROM[PC] | (ROM[PC+1]<<8) | (ROM[PC+2]<<16) | (ROM[PC+3]<<24);
+                }
                 PC += 5; break;
             case PulseArch::STORE:
                 if (PC + 4 >= ROM.size()) break;
                 { uint32_t addr = ROM[PC] | (ROM[PC+1]<<8) | (ROM[PC+2]<<16) | (ROM[PC+3]<<24);
-                  if (addr < RAM.size()) *(uint32_t*)&RAM[addr] = regs[ROM[PC+4]]; }
+                  if (addr < RAM.size() - 3 && ROM[PC+4] < 16) {
+                      *(uint32_t*)&RAM[addr] = regs[ROM[PC+4]];
+                  }
+                }
                 PC += 5; break;
             case PulseArch::INC:
-                regs[ROM[PC++]]++; break;
+                if (PC >= ROM.size()) break;
+                if (ROM[PC] < 16) regs[ROM[PC++]]++;
+                else PC++;
+                break;
             case PulseArch::DEC:
-                regs[ROM[PC++]]--; break;
+                if (PC >= ROM.size()) break;
+                if (ROM[PC] < 16) regs[ROM[PC++]]--;
+                else PC++;
+                break;
             case PulseArch::SHL:
                 if (PC + 1 >= ROM.size()) break;
-                regs[ROM[PC++]] <<= regs[ROM[PC++]]; break;
+                if (ROM[PC] < 16 && ROM[PC+1] < 16) {
+                    regs[ROM[PC++]] <<= regs[ROM[PC++]];
+                } else {
+                    PC += 2;
+                }
+                break;
             case PulseArch::SHR:
                 if (PC + 1 >= ROM.size()) break;
-                regs[ROM[PC++]] >>= regs[ROM[PC++]]; break;
+                if (ROM[PC] < 16 && ROM[PC+1] < 16) {
+                    regs[ROM[PC++]] >>= regs[ROM[PC++]];
+                } else {
+                    PC += 2;
+                }
+                break;
             case PulseArch::MUL:
                 if (PC + 1 >= ROM.size()) break;
-                regs[ROM[PC++]] *= regs[ROM[PC++]]; break;
+                if (ROM[PC] < 16 && ROM[PC+1] < 16) {
+                    regs[ROM[PC++]] *= regs[ROM[PC++]];
+                } else {
+                    PC += 2;
+                }
+                break;
             case PulseArch::DIV:
                 if (PC + 1 >= ROM.size()) break;
-                if (regs[ROM[PC+1]] != 0) regs[ROM[PC]] /= regs[ROM[PC+1]];
+                if (ROM[PC] < 16 && ROM[PC+1] < 16 && regs[ROM[PC+1]] != 0) {
+                    regs[ROM[PC]] /= regs[ROM[PC+1]];
+                }
                 PC += 2; break;
             case PulseArch::PUSH:
-                if (SP >= 4) { SP -= 4; *(uint32_t*)&RAM[SP] = regs[ROM[PC++]]; }
+                if (PC >= ROM.size() || ROM[PC] >= 16) {
+                    PC++;
+                    break;
+                }
+                if (SP >= 4) { 
+                    SP -= 4; 
+                    if (SP <= RAM.size() - 4) {
+                        *(uint32_t*)&RAM[SP] = regs[ROM[PC++]];
+                    } else {
+                        PC++;
+                    }
+                } else {
+                    PC++;
+                }
                 break;
             case PulseArch::POP:
-                if (SP + 4 <= RAM.size()) { regs[ROM[PC++]] = *(uint32_t*)&RAM[SP]; SP += 4; }
+                if (PC >= ROM.size() || ROM[PC] >= 16) {
+                    PC++;
+                    break;
+                }
+                if (SP + 4 <= RAM.size()) { 
+                    regs[ROM[PC++]] = *(uint32_t*)&RAM[SP]; 
+                    SP += 4; 
+                } else {
+                    PC++;
+                }
                 break;
             case PulseArch::CALL:
                 if (PC + 3 >= ROM.size()) break;
-                if (SP >= 4) { SP -= 4; *(uint32_t*)&RAM[SP] = PC + 4; }
-                PC = ROM[PC] | (ROM[PC+1]<<8) | (ROM[PC+2]<<16) | (ROM[PC+3]<<24); break;
+                if (SP >= 4) { 
+                    SP -= 4; 
+                    if (SP <= RAM.size() - 4) {
+                        *(uint32_t*)&RAM[SP] = PC + 4;
+                        PC = ROM[PC] | (ROM[PC+1]<<8) | (ROM[PC+2]<<16) | (ROM[PC+3]<<24);
+                    } else {
+                        PC += 4;
+                    }
+                } else {
+                    PC += 4;
+                }
+                break;
             case PulseArch::RET:
-                if (SP + 4 <= RAM.size()) { PC = *(uint32_t*)&RAM[SP]; SP += 4; }
+                if (SP + 4 <= RAM.size()) { 
+                    PC = *(uint32_t*)&RAM[SP]; 
+                    SP += 4; 
+                }
                 break;
             case PulseArch::LOAD_FRAME:
                 { std::lock_guard<std::mutex> lock(vram_mutex);
                   if (state == PLAYING) {
                       for (int i = 0; i < current_speed; ++i) {
-                          if (!decode_next_frame()) { state = DISC_MENU; clear_render(); break; }
+                          if (!decode_next_frame()) { 
+                              state = DISC_MENU; 
+                              clear_render(); 
+                              break; 
+                          }
                           regs[15]++;
                       }
                   }
-                  if (state == PLAYING || state == PAUSED) { apply_video_effects(); draw_playback_osd(); }
+                  if (state == PLAYING || state == PAUSED) { 
+                      apply_video_effects(); 
+                      draw_playback_osd(); 
+                  }
                   PC--; break; }
             case PulseArch::HALT: running = false; break;
             default: break;
@@ -584,11 +659,18 @@ public:
                 { std::lock_guard<std::mutex> lock(vram_mutex);
                   if (state == PLAYING) {
                       for (int i = 0; i < current_speed; ++i) {
-                          if (!decode_next_frame()) { state = DISC_MENU; clear_render(); break; }
+                          if (!decode_next_frame()) { 
+                              state = DISC_MENU; 
+                              clear_render(); 
+                              break; 
+                          }
                           regs[15]++;
                       }
                   }
-                  if (state == PLAYING || state == PAUSED) { apply_video_effects(); draw_playback_osd(); }
+                  if (state == PLAYING || state == PAUSED) { 
+                      apply_video_effects(); 
+                      draw_playback_osd(); 
+                  }
                   PC--; break; }
             case Z80Arch::HALT: running = false; break;
             default: break;
@@ -597,9 +679,16 @@ public:
 
     void animate_logo() {
         clear_render();
-        logo_x += logo_dx; logo_y += logo_dy;
-        if (logo_x <= 0 || logo_x + 56 >= SCREEN_WIDTH) { logo_dx = -logo_dx; logo_color = (logo_color + 1) % 4; }
-        if (logo_y <= 0 || logo_y + 12 >= SCREEN_HEIGHT) { logo_dy = -logo_dy; logo_color = (logo_color + 1) % 4; }
+        logo_x += logo_dx; 
+        logo_y += logo_dy;
+        if (logo_x <= 0 || logo_x + 56 >= SCREEN_WIDTH) { 
+            logo_dx = -logo_dx; 
+            logo_color = (logo_color + 1) % 4; 
+        }
+        if (logo_y <= 0 || logo_y + 12 >= SCREEN_HEIGHT) { 
+            logo_dy = -logo_dy; 
+            logo_color = (logo_color + 1) % 4; 
+        }
         uint8_t cr=255, cg=255, cb=255;
         switch (logo_color) {
             case 1: cr=255; cg=255; cb=0; break;
@@ -660,42 +749,60 @@ int main(int argc, char* argv[]) {
     sf::Sprite sprite(texture);
     sprite.setScale(static_cast<float>(SCALE), static_cast<float>(SCALE));
     std::vector<sf::Uint8> pixels(SCREEN_WIDTH * SCREEN_HEIGHT * 4, 255);
-    std::cout << "\n--- HOTKEYS ---\n";
+    std::cout << "\n--- hotkeys ---\n";
     std::cout << "[m]    : core settings\n[v]    : video fx\n[esc]  : close menu\n";
     std::cout << "[space]: play/pause\n[s]    : disc menu\n";
+    
+    // главный цикл
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) { cpu.running = false; window.close(); }
+            if (event.type == sf::Event::Closed) { 
+                cpu.running = false; 
+                window.close(); 
+            }
             if (event.type == sf::Event::KeyPressed) {
                 std::lock_guard<std::mutex> lock(cpu.vram_mutex);
                 if (event.key.code == sf::Keyboard::M && !cpu.show_osd_menu && cpu.has_disc) {
-                    cpu.show_osd_menu = true; cpu.show_fx_menu = false; cpu.osd_anim = 0.0f;
+                    cpu.show_osd_menu = true; 
+                    cpu.show_fx_menu = false; 
+                    cpu.osd_anim = 0.0f;
                 }
                 else if (event.key.code == sf::Keyboard::V && !cpu.show_fx_menu && cpu.has_disc) {
-                    cpu.show_fx_menu = true; cpu.show_osd_menu = false; cpu.fx_anim = 0.0f;
+                    cpu.show_fx_menu = true; 
+                    cpu.show_osd_menu = false; 
+                    cpu.fx_anim = 0.0f;
                 }
                 else if (event.key.code == sf::Keyboard::Escape && (cpu.show_osd_menu || cpu.show_fx_menu)) {
-                    cpu.show_osd_menu = false; cpu.show_fx_menu = false;
+                    cpu.show_osd_menu = false; 
+                    cpu.show_fx_menu = false;
                 }
                 else if (cpu.show_osd_menu) {
-                    if (event.key.code == sf::Keyboard::Down) cpu.menu_selected = (cpu.menu_selected + 1) % cpu.menu_labels.size();
-                    if (event.key.code == sf::Keyboard::Up) cpu.menu_selected = (cpu.menu_selected - 1 + cpu.menu_labels.size()) % cpu.menu_labels.size();
+                    if (event.key.code == sf::Keyboard::Down) 
+                        cpu.menu_selected = (cpu.menu_selected + 1) % cpu.menu_labels.size();
+                    if (event.key.code == sf::Keyboard::Up) 
+                        cpu.menu_selected = (cpu.menu_selected - 1 + cpu.menu_labels.size()) % cpu.menu_labels.size();
                     if (event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::Left) {
                         int dir = (event.key.code == sf::Keyboard::Right) ? 1 : -1;
                         switch (cpu.menu_selected) {
-                            case 0: if (dir == 1 && cpu.current_speed < 4) cpu.current_speed *= 2;
-                                    if (dir == -1 && cpu.current_speed > 1) cpu.current_speed /= 2; break;
+                            case 0: 
+                                if (dir == 1 && cpu.current_speed < 4) cpu.current_speed *= 2;
+                                if (dir == -1 && cpu.current_speed > 1) cpu.current_speed /= 2; 
+                                break;
                             case 1: cpu.zoom_enabled = !cpu.zoom_enabled; break;
                             case 2: cpu.info_osd = !cpu.info_osd; break;
-                            case 3: if (dir == 1) cpu.seek_chapter(cpu.current_chapter + 1);
-                                    if (dir == -1) cpu.seek_chapter(cpu.current_chapter - 1); break;
+                            case 3: 
+                                if (dir == 1) cpu.seek_chapter(cpu.current_chapter + 1);
+                                if (dir == -1) cpu.seek_chapter(cpu.current_chapter - 1); 
+                                break;
                         }
                     }
                 }
                 else if (cpu.show_fx_menu) {
-                    if (event.key.code == sf::Keyboard::Down) cpu.fx_selected = (cpu.fx_selected + 1) % cpu.fx_labels.size();
-                    if (event.key.code == sf::Keyboard::Up) cpu.fx_selected = (cpu.fx_selected - 1 + cpu.fx_labels.size()) % cpu.fx_labels.size();
+                    if (event.key.code == sf::Keyboard::Down) 
+                        cpu.fx_selected = (cpu.fx_selected + 1) % cpu.fx_labels.size();
+                    if (event.key.code == sf::Keyboard::Up) 
+                        cpu.fx_selected = (cpu.fx_selected - 1 + cpu.fx_labels.size()) % cpu.fx_labels.size();
                     if (event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::Left) {
                         int dir = (event.key.code == sf::Keyboard::Right) ? 10 : -10;
                         switch (cpu.fx_selected) {
@@ -720,7 +827,10 @@ int main(int argc, char* argv[]) {
                         if (cpu.state == CoreSystem::PLAYING) cpu.state = CoreSystem::PAUSED;
                         else if (cpu.state == CoreSystem::PAUSED) cpu.state = CoreSystem::PLAYING;
                     }
-                    if (event.key.code == sf::Keyboard::S) { cpu.state = CoreSystem::DISC_MENU; cpu.clear_render(); }
+                    if (event.key.code == sf::Keyboard::S) { 
+                        cpu.state = CoreSystem::DISC_MENU; 
+                        cpu.clear_render(); 
+                    }
                     if (event.key.code == sf::Keyboard::Right) cpu.seek_chapter(cpu.current_chapter + 1);
                     if (event.key.code == sf::Keyboard::Left) cpu.seek_chapter(cpu.current_chapter - 1);
                 }
@@ -728,6 +838,7 @@ int main(int argc, char* argv[]) {
         }
         {
             std::lock_guard<std::mutex> lock(cpu.vram_mutex);
+            // конвертация rgb24 в rgba
             for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; ++i) {
                 pixels[i*4] = cpu.RENDER_VRAM[i*3];
                 pixels[i*4+1] = cpu.RENDER_VRAM[i*3+1];
